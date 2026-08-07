@@ -1,0 +1,83 @@
+name: Deploy to AWS ECS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: generative-ui-studio
+  ECS_CLUSTER: generative-ui-studio-cluster
+  ECS_SERVICE: generative-ui-studio-service
+  ECS_TASK_DEFINITION: aws/ecs-task-definition.json
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Render ECS task definition
+        env:
+          IMAGE: ${{ steps.build-image.outputs.image }}
+          ECS_EXECUTION_ROLE_ARN: ${{ secrets.ECS_EXECUTION_ROLE_ARN }}
+          ECS_TASK_ROLE_ARN: ${{ secrets.ECS_TASK_ROLE_ARN }}
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          path = Path('aws/ecs-task-definition.json')
+          text = path.read_text()
+          text = text.replace('IMAGE_PLACEHOLDER', os.environ['IMAGE'])
+          text = text.replace('EXECUTION_ROLE_ARN_PLACEHOLDER', os.environ.get('ECS_EXECUTION_ROLE_ARN', ''))
+          text = text.replace('TASK_ROLE_ARN_PLACEHOLDER', os.environ.get('ECS_TASK_ROLE_ARN', ''))
+          path.write_text(text)
+          print(path.read_text())
+          PY
+
+      - name: Register ECS task definition
+        id: register-task-def
+        run: |
+          aws ecs register-task-definition --cli-input-json file://aws/ecs-task-definition.json > /tmp/taskdef.json
+          echo "task_def_arn=$(python - <<'PY'
+import json
+with open('/tmp/taskdef.json') as fh:
+    print(json.load(fh)['taskDefinition']['taskDefinitionArn'])
+PY
+)" >> "$GITHUB_OUTPUT"
+
+      - name: Update ECS service
+        run: |
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE" \
+            --task-definition "${{ steps.register-task-def.outputs.task_def_arn }}"
