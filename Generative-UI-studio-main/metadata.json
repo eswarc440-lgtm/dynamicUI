@@ -1,0 +1,6 @@
+{
+  "name": "Generative UI Studio",
+  "description": "An AI-powered Generative UI engine that dynamically builds interactive user interfaces, rich data dashboards, charts, workflows, and reactive forms on the fly from natural language prompts.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
