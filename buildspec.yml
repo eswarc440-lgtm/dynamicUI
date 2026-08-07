@@ -1,0 +1,44 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+    commands:
+      - echo "Installing dependencies from the application subfolder"
+      - cd Generative-UI-studio-main
+      - npm ci
+
+  pre_build:
+    commands:
+      - echo "Running TypeScript checks"
+      - cd Generative-UI-studio-main
+      - npm run lint
+
+  build:
+    commands:
+      - echo "Building the React/Vite application"
+      - cd Generative-UI-studio-main
+      - npm run build
+
+  post_build:
+    commands:
+      - echo "Build completed successfully"
+
+artifacts:
+  files:
+    - Generative-UI-studio-main/dist/**
+    - Generative-UI-studio-main/package.json
+    - Generative-UI-studio-main/package-lock.json
+    - Generative-UI-studio-main/server.ts
+    - Generative-UI-studio-main/vite.config.ts
+    - Generative-UI-studio-main/tsconfig.json
+    - Generative-UI-studio-main/Dockerfile
+    - Generative-UI-studio-main/.dockerignore
+    - Generative-UI-studio-main/appspec.yml
+    - Generative-UI-studio-main/scripts/**
+  discard-paths: no
+
+cache:
+  paths:
+    - Generative-UI-studio-main/node_modules/**
