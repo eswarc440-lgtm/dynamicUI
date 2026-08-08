@@ -5,29 +5,30 @@ phases:
     runtime-versions:
       nodejs: 20
     commands:
-      - echo "Installing dependencies from the application subfolder"
+      - echo "Installing dependencies"
       - cd Generative-UI-studio-main
       - npm ci
 
   pre_build:
     commands:
-      - echo "Running TypeScript checks"
+      - echo "Running lint checks"
       - cd Generative-UI-studio-main
       - npm run lint
 
   build:
     commands:
-      - echo "Building the React/Vite application"
+      - echo "Building Vite and server bundles"
       - cd Generative-UI-studio-main
       - npm run build
 
   post_build:
     commands:
-      - echo "Build completed successfully"
+      - echo "Build completed"
 
 artifacts:
   files:
     - Generative-UI-studio-main/dist/**
+    - Generative-UI-studio-main/dist/server.cjs
     - Generative-UI-studio-main/package.json
     - Generative-UI-studio-main/package-lock.json
     - Generative-UI-studio-main/server.ts

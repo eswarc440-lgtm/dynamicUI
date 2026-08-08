@@ -25,7 +25,7 @@ export const FoodMenuCard: React.FC<FoodMenuCardProps> = ({ component, theme }) 
     });
   };
 
-  const totalCartCount = Object.values(cartQuantities).reduce((a, b) => a + b, 0);
+  const totalCartCount = Object.values(cartQuantities).reduce<number>((a, b) => a + (typeof b === 'number' ? b : 0), 0);
 
   return (
     <div className="space-y-4 relative">
